@@ -18,11 +18,12 @@
 
 | Evidence | Đường dẫn |
 |---|---|
+| Baseline (CP0) | `evidence/00-baseline.txt` |
 | Pytest cuối | `evidence/01-pytest.png` |
-| Log validator | `evidence/02-log-validator.png` |
+| Log validator | `evidence/02-log-validator.txt` |
 | Dashboard validator | `evidence/03-dashboard-validator.png` |
-| Structured log | `evidence/04-structured-log.png` |
-| PII redaction | `evidence/05-pii-redaction.png` |
+| Structured log | `evidence/04-structured-log.txt` |
+| PII redaction | `evidence/05-pii-redaction.txt` |
 | Trace list | `evidence/06-trace-list.png` |
 | Trace waterfall | `evidence/07-trace-waterfall.png` |
 | Trace metadata | `evidence/08-trace-metadata.png` |
@@ -37,20 +38,20 @@
 
 | Nội dung | Baseline | Kết quả cuối | Nhận xét |
 |---|---|---|---|
-| `validate_logs.py` | | | |
-| `validate_dashboard.py` | | | |
-| `pytest` | | | |
+| `validate_logs.py` | 30/100 (21 records: 20 thiếu `correlation_id`, 20 thiếu enrichment, 0 correlation ID) — [00-baseline.txt](evidence/00-baseline.txt) | CP1: 100/100 — [02-log-validator.txt](evidence/02-log-validator.txt) | Đã lưu output baseline, chuyển log cũ ra khỏi repo rồi chạy lại load test trước khi đo |
+| `validate_dashboard.py` | HỢP LỆ: 6/6 panel (contract) | | Validator chỉ kiểm tra contract; dashboard runtime làm ở CP2 |
+| `pytest` | 22 passed | CP1: 34 passed | +12 test cho PII, correlation ID, enrichment, thứ tự processor |
 | Số traces hợp lệ | | | |
-| Số PII leak | | | |
+| Số PII leak | 0 (validator) | CP1: 0 — [05-pii-redaction.txt](evidence/05-pii-redaction.txt) | Baseline 0 vì `summarize_text` đã scrub `message_preview`, nhưng processor chưa đăng ký nên field khác (error detail, event) vẫn có thể lộ |
 | Latency P95 / TTFT P95 | | | |
 | Retrieval success rate | | | |
 
 ## 4. Logging và PII
 
-- **Cách tạo/nhận và truyền correlation ID:**
-- **Các metadata được ghi vào structured log:**
-- **Cách bảo đảm PII được scrub trước khi ghi:**
-- **Cách kiểm chứng kết quả:**
+- **Cách tạo/nhận và truyền correlation ID:** `CorrelationIdMiddleware` ([app/middleware.py](../app/middleware.py)) gọi `clear_contextvars()` đầu mỗi request để không rò context từ request trước. Nếu client gửi `x-request-id` đúng format `req-<8-hex>` thì dùng lại, ngược lại (thiếu, sai format, chuỗi độc hại) sinh mới `req-{uuid4().hex[:8]}`. ID được `bind_contextvars(correlation_id=...)`, lưu vào `request.state` (để truyền sang `LabAgent.run` và trace metadata), rồi trả lại qua header `x-request-id` cùng `x-response-time-ms` và field `correlation_id` trong response body.
+- **Các metadata được ghi vào structured log:** mọi dòng có `ts` (ISO UTC), `level`, `service`, `event`, `correlation_id`. Trong `/chat` ([app/main.py](../app/main.py)) bind trước `request_received`: `user_id_hash` (SHA-256 12 ký tự, không log `user_id` thô), `session_id`, `feature`, `model`, `env`. `response_sent` bổ sung `latency_ms`, `ttft_ms`, `tokens_in`, `tokens_out`, `cost_usd`, `quality_score`, `tool_name`, `tool_success`. Ví dụ: [04-structured-log.txt](evidence/04-structured-log.txt).
+- **Cách bảo đảm PII được scrub trước khi ghi:** `scrub_event` được đăng ký trong chuỗi processor của structlog ([app/logging_config.py](../app/logging_config.py)) sau `format_exc_info` (traceback cũng được scrub) và **trước** `JsonlFileProcessor` và `JSONRenderer`, nên dữ liệu thô không bao giờ được serialize/ghi file. Processor scrub đệ quy mọi giá trị chuỗi (kể cả dict/list lồng nhau), trừ các field do app tự sinh (`ts`, `level`, `correlation_id`, `Pattern trong [app/pii.py](../app/pii.py) (giữ nguyên rule của đề): email, điện thoại VN (`+84`/`0` + 9 số, cho phép dấu cách/chấm/gạch), CCCD (12 số), thẻ thanh toán (16 số, nhóm 4-4-4-4). Nhãn thay thế là `[REDACTED_<LOẠI>]`.phần dãy số dài.
+- **Cách kiểm chứng kết quả:** (1) `python scripts/validate_logs.py` đạt 100/100 trên log mới (12 correlation ID, 0 thiếu field, 0 PII leak). (2) Gửi request chứa PII giả đủ 4 loại → log chỉ còn `[REDACTED_*]` ([05-pii-redaction.txt](evidence/05-pii-redaction.txt)). (3) Gửi `x-request-id: req-1a2b3c4d` → response trả đúng ID đó. (4) Tests: [tests/test_pii.py](../tests/test_pii.py) và [tests/test_correlation_logging.py](../tests/test_correlation_logging.py) kiểm tra sinh/nhận/thay ID sai format, enrichment đúng từng request (không rò context giữa 2 request liên tiếp), PII không xuất hiện trong file log, và `scrub_event` đứng trước file writer/renderer.
 
 ## 5. Tracing và prompt versioning
 

@@ -1,0 +1,45 @@
+# Structured log (data/logs.jsonl) - request_received + response_sent cua cung mot request
+$ grep "req-28c08357" data/logs.jsonl
+{
+  "service": "api",
+  "payload": {
+    "message_preview": "What is your refund policy? My email is [REDACTED_EMAIL]"
+  },
+  "event": "request_received",
+  "correlation_id": "req-28c08357",
+  "user_id_hash": "2055254ee30a",
+  "env": "dev",
+  "session_id": "s01",
+  "feature": "qa",
+  "model": "claude-sonnet-4-5",
+  "level": "info",
+  "ts": "2026-09-29T08:03:33.880752Z"
+}
+{
+  "service": "api",
+  "latency_ms": 1007,
+  "ttft_ms": 50,
+  "tokens_in": 36,
+  "tokens_out": 144,
+  "cost_usd": 0.002268,
+  "quality_score": 0.9,
+  "tool_name": "retrieval",
+  "tool_success": true,
+  "payload": {
+    "answer_preview": "Starter answer. You should improve this output logic and add better quality chec..."
+  },
+  "event": "response_sent",
+  "correlation_id": "req-28c08357",
+  "user_id_hash": "2055254ee30a",
+  "env": "dev",
+  "session_id": "s01",
+  "feature": "qa",
+  "model": "claude-sonnet-4-5",
+  "level": "info",
+  "ts": "2026-09-29T08:03:34.902266Z"
+}
+
+# Response header cua request gui kem x-request-id: req-1a2b3c4d
+HTTP/1.1 200 OK
+x-request-id: req-1a2b3c4d
+x-response-time-ms: 1562.80

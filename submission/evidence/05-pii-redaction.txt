@@ -1,0 +1,47 @@
+# PII redaction - input test chua PII GIA (du lieu thu nghiem, khong phai du lieu that):
+#   "Test PII: email student@vinuni.edu.vn, phone 090 123 4567, CCCD 001203004567, card 4111 1111 1111 1111"
+# Log thuc te ghi xuong data/logs.jsonl:
+$ grep "req-0000beef" data/logs.jsonl
+{
+  "service": "api",
+  "payload": {
+    "message_preview": "Test PII: email [REDACTED_EMAIL], phone [REDACTED_PHONE_VN], CCCD [REDACTED_CCCD..."
+  },
+  "event": "request_received",
+  "correlation_id": "req-0000beef",
+  "user_id_hash": "a02963f5076c",
+  "env": "dev",
+  "session_id": "s-pii",
+  "feature": "qa",
+  "model": "claude-sonnet-4-5",
+  "level": "info",
+  "ts": "2026-09-29T08:04:35.260167Z"
+}
+{
+  "service": "api",
+  "latency_ms": 1474,
+  "ttft_ms": 50,
+  "tokens_in": 46,
+  "tokens_out": 122,
+  "cost_usd": 0.001968,
+  "quality_score": 0.8,
+  "tool_name": "retrieval",
+  "tool_success": true,
+  "payload": {
+    "answer_preview": "Starter answer. You should improve this output logic and add better quality chec..."
+  },
+  "event": "response_sent",
+  "correlation_id": "req-0000beef",
+  "user_id_hash": "a02963f5076c",
+  "env": "dev",
+  "session_id": "s-pii",
+  "feature": "qa",
+  "model": "claude-sonnet-4-5",
+  "level": "info",
+  "ts": "2026-09-29T08:04:36.737361Z"
+}
+
+# Cac request tu data/sample_queries.jsonl co email/phone/card:
+req-28c08357 request_received {'message_preview': 'What is your refund policy? My email is [REDACTED_EMAIL]'}
+req-ffb5f111 request_received {'message_preview': 'Here is my phone [REDACTED_PHONE_VN], what should be logged?'}
+req-106d64a3 request_received {'message_preview': 'What is the policy for PII and credit card [REDACTED_CREDIT_CARD]?'}
