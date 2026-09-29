@@ -7,7 +7,22 @@ primary_slo:
     total_event: 'event == "request_received"'
   target_percent: 99.5
   error_budget_percent: 0.5
-  note: Học viên phải giải thích hoặc điều chỉnh ngưỡng bằng baseline của mình.
+  rationale: >-
+    Giữ ngưỡng 3000 ms và target 99.5%. Baseline đo từ data/logs.jsonl (36 request, 2026-09-29):
+    P50 = 808 ms, 34/36 request <= 3000 ms. Hai request vượt ngưỡng (6714 ms, 3997 ms) đều là
+    lần fetch prompt Langfuse đầu tiên/khi prompt chưa tồn tại (cold start), không phải trạng thái
+    ổn định, nên 3000 ms còn dư địa ~3.7 lần so với P50 mà vẫn là giới hạn người dùng chat chấp nhận được.
+    Latency và lỗi gộp chung một SLI vì với người dùng, request lỗi và request quá chậm đều là "hỏng".
+  error_budget:
+    formula: 'budget_bad_events = (1 - target_percent / 100) * total_events'
+    example_traffic: 'giả định 1 request/phút => 60 * 24 * 28 = 40320 request / 28 ngày'
+    example_budget: '0.005 * 40320 = 201 request được phép chậm (> 3000 ms) hoặc lỗi trong 28 ngày'
+    time_equivalent: '0.5% * 28 ngày = 3.36 giờ nếu toàn bộ traffic hỏng liên tục'
+    policy: 'Đã tiêu > 50% budget => ưu tiên sửa độ tin cậy, tạm dừng đổi prompt/model; hết budget => chỉ deploy fix.'
+  known_limitation: >-
+    latency_ms được đo trong LabAgent.run nên không tính thời gian request xếp hàng trước khi vào handler.
+    Khi practice rag_slow với concurrency 5, latency_ms ~2.6 s (vẫn "good") nhưng client chờ tới ~13 s.
+    Cần bổ sung SLI đo ở biên (x-response-time-ms của middleware) để SLO phản ánh đúng trải nghiệm người dùng.
 guardrails:
   error_rate_pct_max: 2
   daily_cost_usd_max: 2.5

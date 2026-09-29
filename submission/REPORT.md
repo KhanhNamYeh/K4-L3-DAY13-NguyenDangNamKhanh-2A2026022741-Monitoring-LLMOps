@@ -21,7 +21,7 @@
 | Baseline (CP0) | `evidence/00-baseline.txt` |
 | Pytest cuối | `evidence/01-pytest.png` |
 | Log validator | `evidence/02-log-validator.txt` |
-| Dashboard validator | `evidence/03-dashboard-validator.png` |
+| Dashboard validator | `evidence/03-dashboard-validator.txt` |
 | Structured log | `evidence/04-structured-log.txt` |
 | PII redaction | `evidence/05-pii-redaction.txt` |
 | Trace list | `evidence/06-trace-list.png` |
@@ -39,12 +39,12 @@
 | Nội dung | Baseline | Kết quả cuối | Nhận xét |
 |---|---|---|---|
 | `validate_logs.py` | 30/100 (21 records: 20 thiếu `correlation_id`, 20 thiếu enrichment, 0 correlation ID) — [00-baseline.txt](evidence/00-baseline.txt) | CP1: 100/100 — [02-log-validator.txt](evidence/02-log-validator.txt) | Đã lưu output baseline, chuyển log cũ ra khỏi repo rồi chạy lại load test trước khi đo |
-| `validate_dashboard.py` | HỢP LỆ: 6/6 panel (contract) | | Validator chỉ kiểm tra contract; dashboard runtime làm ở CP2 |
+| `validate_dashboard.py` | HỢP LỆ: 6/6 panel (contract) | CP2: HỢP LỆ 6/6 — [03-dashboard-validator.txt](evidence/03-dashboard-validator.txt) | Dashboard runtime dựng bằng `scripts/build_dashboard.py` từ `data/logs.jsonl` |
 | `pytest` | 22 passed | CP1: 34 passed | +12 test cho PII, correlation ID, enrichment, thứ tự processor |
-| Số traces hợp lệ | | | |
+| Số traces hợp lệ | 0 child observation (starter chỉ có root) | CP2: 23 traces có root + `retrieval` + `llm-generation` | Đếm qua Langfuse Observations API v2 |
 | Số PII leak | 0 (validator) | CP1: 0 — [05-pii-redaction.txt](evidence/05-pii-redaction.txt) | Baseline 0 vì `summarize_text` đã scrub `message_preview`, nhưng processor chưa đăng ký nên field khác (error detail, event) vẫn có thể lộ |
-| Latency P95 / TTFT P95 | | | |
-| Retrieval success rate | | | |
+| Latency P95 / TTFT P95 | | CP2: 3997 ms / 50 ms (36 request, cửa sổ 60 phút) | P95 bị kéo lên bởi 2 request cold-start fetch prompt; khi chạy `rag_slow` latency ~2653 ms |
+| Retrieval success rate | | CP2: 100% (0 `request_failed`) | Chưa chạy practice `tool_fail` |
 
 ## 4. Logging và PII
 
@@ -55,21 +55,21 @@
 
 ## 5. Tracing và prompt versioning
 
-- **Cách xác nhận traces do chính tôi tạo trong project cá nhân:**
-- **Cấu trúc root/retrieval/generation observations:**
-- **Cách nối trace với log:**
-- **Prompt name:**
-- **Version/label baseline:**
-- **Version/label candidate:**
-- **Trace ID của mỗi version:**
-- **Cách promote và rollback `production`:**
+- **Cách xác nhận traces do chính tôi tạo trong project cá nhân:** key trong `.env` thuộc project Langfuse cá nhân; mọi trace được tạo bằng workload tự chạy (`scripts/load_test.py`, `--concurrency 5`, practice `rag_slow`). Mỗi trace có `correlation_id` trùng với một dòng trong `data/logs.jsonl` của tôi.
+- **Cấu trúc root/retrieval/generation observations:** root `lab-agent-run` (type `agent`, starter) có hai con: `retrieval` (type `retriever`, `@observe` trên `retrieve()` trong [app/mock_rag.py](../app/mock_rag.py)) và `llm-generation` (type `generation`, `@observe` trên `FakeLLM.generate()` trong [app/mock_llm.py](../app/mock_llm.py)). Generation ghi `model`, `usage_details` (input/output tokens), `cost_details` (input/output USD, cùng bảng giá `PRICE_PER_MTOK_USD` với `cost_usd` trong log) và `completion_start_time` (TTFT). Prompt được gắn vào generation qua `propagate_attributes(prompt=...)` có sẵn trong agent. Cả hai observation con đều `capture_input=False, capture_output=False` vì prompt đã compile chứa message thô có thể có PII.
+- **Cách nối trace với log:** `correlation_id` từ middleware được truyền vào `LabAgent.run` và đưa vào trace metadata qua `propagate_attributes(metadata=...)`, nên cả root và observation con đều có `correlation_id`. Từ một dòng log, lọc trace trên Langfuse theo metadata `correlation_id` (ví dụ `req-56cb3a22` → trace `9ef9a0a0a709c5c1c9fc71b571ef555f`).
+- **Prompt name:** `day13-chat` (text prompt, giữ 3 biến `{{feature}}`, `{{docs}}`, `{{message}}`)
+- **Version/label baseline:** version 1 = template gốc, labels `baseline` + `production`
+- **Version/label candidate:** version 2 = thêm dòng `Answer in at most 3 short bullet points.`, label `candidate`
+- **Trace ID của mỗi version:** cùng input *"Explain why metrics traces and logs work together"*: `baseline` → v1: `req-56cb3a22`, trace `9ef9a0a0a709c5c1c9fc71b571ef555f` (tokens_in 32); `candidate` → v2: `req-cdda450a`, trace `e23e86c516c9bef17237f4a0afdadf33` (tokens_in 43). Metadata root ghi `prompt_source=langfuse`, `prompt_label` và `prompt_version` tương ứng; generation liên kết `day13-chat` v1/v2.
+- **Cách promote và rollback `production`:** _(chưa làm — thực hiện trên Langfuse UI và chụp ảnh trước/sau)_
 
 ## 6. Dashboard, SLO và alerts
 
-- **Dashboard và sáu panel:**
-- **SLO và lý do chọn:**
-- **Cách tính error budget:**
-- **Ba alert và runbook tương ứng:**
+- **Dashboard và sáu panel:** [scripts/build_dashboard.py](../scripts/build_dashboard.py) đọc contract [config/dashboard.yaml](../config/dashboard.yaml) (tên panel, đơn vị, threshold, time range 60 phút, refresh 30 s) và tính aggregation từ `data/logs.jsonl`, sinh `data/dashboard.html` (chạy `--watch` để cập nhật mỗi 30 s). Sáu panel: latency P50/P95/P99 + TTFT P95; traffic (count, req/phút); error rate + breakdown `error_type` + retrieval success; cost theo phút + tổng; tokens input/output; quality mean. Mỗi panel có đơn vị, đường threshold và trạng thái đạt/vượt. Kiểm tra runtime: bật practice `rag_slow` làm latency tăng từ ~470–780 ms lên ~2653 ms.
+- **SLO và lý do chọn:** [config/slo.yaml](../config/slo.yaml): 99.5% request (28 ngày) trả lời thành công trong ≤ 3000 ms. Baseline: P50 808 ms, 34/36 request ≤ 3000 ms; hai request vượt đều là cold-start fetch prompt. Hạn chế: `latency_ms` đo trong agent nên không tính thời gian xếp hàng (khi practice `rag_slow`, log ~2.6 s nhưng client chờ ~13 s).
+- **Cách tính error budget:** budget = (1 − 99.5%) × tổng request = 0.5%. Với giả định 1 request/phút: 40 320 request/28 ngày → được phép 201 request chậm/lỗi, tương đương 3.36 giờ nếu hỏng toàn bộ. Tiêu > 50% budget thì dừng đổi prompt/model để ưu tiên độ tin cậy.
+- **Ba alert và runbook tương ứng:** [config/alert_rules.yaml](../config/alert_rules.yaml) + [docs/alerts.md](../docs/alerts.md): `HighLatencyP95` (P2, P95 > 3000 ms trong 5m), `HighErrorRate` (P1, error rate > 2% trong 5m), `CostBurnRateHigh` (P3, cost 1h × 24 > 2.5 USD trong 15m). Cả ba đều symptom-based, gửi Slack `#day13-llmops-alerts`, owner `llmops-oncall`, runbook đi theo Metrics → Logs → Traces.
 
 ## 7. Điều tra challenge
 

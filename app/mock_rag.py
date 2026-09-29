@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 from .incidents import STATE
+from .tracing import observe
 
 CORPUS = {
     "refund": ["Refunds are available within 7 days with proof of purchase."],
@@ -11,6 +12,9 @@ CORPUS = {
 }
 
 
+# Child observation of the agent root. Input/output are not captured because the
+# raw message may contain PII.
+@observe(name="retrieval", as_type="retriever", capture_input=False, capture_output=False)
 def retrieve(message: str) -> list[str]:
     if STATE["tool_fail"]:
         raise RuntimeError("Vector store timeout")

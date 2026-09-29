@@ -1,0 +1,383 @@
+"""Build the 6-panel runtime dashboard from data/logs.jsonl.
+
+Panel titles, units and thresholds come from config/dashboard.yaml (the grading
+contract); this script only computes the aggregations described there and renders
+a self-contained HTML page (no external assets).
+
+    python scripts/build_dashboard.py            # write data/dashboard.html once
+    python scripts/build_dashboard.py --watch    # rewrite every refresh_seconds
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from statistics import mean
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.cli import configure_utf8_stdio
+from app.metrics import percentile
+from scripts.validate_dashboard import load_dashboard_config
+
+
+def load_records(log_path: Path, start: datetime, end: datetime) -> list[dict]:
+    records = []
+    for line in log_path.read_text(encoding="utf-8").splitlines():
+        try:
+            rec = json.loads(line)
+            ts = datetime.fromisoformat(rec["ts"].replace("Z", "+00:00"))
+        except (json.JSONDecodeError, KeyError, ValueError):
+            continue
+        if start <= ts < end:
+            rec["_minute"] = int((ts - start).total_seconds() // 60)
+            records.append(rec)
+    return records
+
+
+def by_minute(records: list[dict], event: str) -> dict[int, list[dict]]:
+    buckets: dict[int, list[dict]] = defaultdict(list)
+    for rec in records:
+        if rec.get("event") == event:
+            buckets[rec["_minute"]].append(rec)
+    return buckets
+
+
+def pct(part: int, whole: int) -> float | None:
+    return round(part / whole * 100, 2) if whole else None
+
+
+def compute_panels(records: list[dict], minutes: int) -> dict[str, dict]:
+    sent = [r for r in records if r.get("event") == "response_sent"]
+    received = [r for r in records if r.get("event") == "request_received"]
+    failed = [r for r in records if r.get("event") == "request_failed"]
+    sent_m = by_minute(records, "response_sent")
+    recv_m = by_minute(records, "request_received")
+    fail_m = by_minute(records, "request_failed")
+
+    def series(fn, buckets):
+        return [fn(buckets[m]) if buckets.get(m) else None for m in range(minutes)]
+
+    def p(field, q):
+        return lambda rs: percentile([r[field] for r in rs], q)
+
+    tool_results = [r["tool_success"] for r in records if r.get("tool_success") is not None]
+    return {
+        "latency": {
+            "series": {
+                "P50": series(p("latency_ms", 50), sent_m),
+                "P95": series(p("latency_ms", 95), sent_m),
+                "P99": series(p("latency_ms", 99), sent_m),
+                "TTFT P95": series(p("ttft_ms", 95), sent_m),
+            },
+            "stats": {
+                "p50": percentile([r["latency_ms"] for r in sent], 50) if sent else None,
+                "p95": percentile([r["latency_ms"] for r in sent], 95) if sent else None,
+                "p99": percentile([r["latency_ms"] for r in sent], 99) if sent else None,
+                "ttft_p95": percentile([r["ttft_ms"] for r in sent], 95) if sent else None,
+            },
+        },
+        "traffic": {
+            "series": {"Requests": [len(recv_m.get(m, [])) for m in range(minutes)]},
+            "stats": {
+                "count": len(received),
+                "rate_per_minute": round(len(received) / minutes, 2),
+                "peak_per_minute": max((len(v) for v in recv_m.values()), default=0),
+            },
+        },
+        "errors": {
+            "series": {
+                "Error rate": [
+                    pct(len(fail_m.get(m, [])), len(recv_m[m])) if recv_m.get(m) else None
+                    for m in range(minutes)
+                ]
+            },
+            "stats": {
+                "error_rate_pct": pct(len(failed), len(received)),
+                "tool_success_rate_pct": pct(sum(tool_results), len(tool_results)),
+                "count_by_value": dict(Counter(r.get("error_type") or "unknown" for r in failed)),
+            },
+        },
+        "cost": {
+            "series": {"Cost": series(lambda rs: round(sum(r["cost_usd"] for r in rs), 6), sent_m)},
+            "stats": {"total": round(sum(r["cost_usd"] for r in sent), 6)},
+        },
+        "tokens": {
+            "series": {
+                "Input": series(lambda rs: sum(r["tokens_in"] for r in rs), sent_m),
+                "Output": series(lambda rs: sum(r["tokens_out"] for r in rs), sent_m),
+            },
+            "stats": {
+                "tokens_in": sum(r["tokens_in"] for r in sent),
+                "tokens_out": sum(r["tokens_out"] for r in sent),
+            },
+        },
+        "quality": {
+            "series": {"Mean quality": series(lambda rs: round(mean(r["quality_score"] for r in rs), 3), sent_m)},
+            "stats": {"mean": round(mean(r["quality_score"] for r in sent), 3) if sent else None},
+        },
+    }
+
+
+def _display_path(path: Path) -> str:
+    # Repo-relative so screenshots never show a local user path.
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.name
+
+
+def build(log_path: Path, config_path: Path, out_path: Path) -> Path:
+    dashboard = load_dashboard_config(config_path)["dashboard"]
+    minutes = dashboard["time_range_minutes"]
+    end = datetime.now(timezone.utc).replace(second=0, microsecond=0) + timedelta(minutes=1)
+    start = end - timedelta(minutes=minutes)
+    records = load_records(log_path, start, end) if log_path.exists() else []
+    data = compute_panels(records, minutes)
+
+    payload = {
+        "title": dashboard["title"],
+        "source": _display_path(log_path),
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "minutes": minutes,
+        "refresh": dashboard["refresh_seconds"],
+        "records": len(records),
+        "panels": [
+            {
+                "id": panel["id"],
+                "title": panel["title"],
+                "unit": panel["unit"],
+                "threshold": panel["threshold"],
+                **data[panel["id"]],
+            }
+            for panel in dashboard["panels"]
+        ],
+    }
+    html = TEMPLATE.replace("__REFRESH__", str(dashboard["refresh_seconds"])).replace(
+        "__DATA__", json.dumps(payload).replace("</", "<\\/")
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(html, encoding="utf-8")
+    return out_path
+
+
+def main() -> int:
+    configure_utf8_stdio()
+    parser = argparse.ArgumentParser(description="Dựng dashboard 6 panel từ data/logs.jsonl")
+    parser.add_argument("--log", type=Path, default=REPO_ROOT / "data" / "logs.jsonl")
+    parser.add_argument("--config", type=Path, default=REPO_ROOT / "config" / "dashboard.yaml")
+    parser.add_argument("--out", type=Path, default=REPO_ROOT / "data" / "dashboard.html")
+    parser.add_argument("--watch", action="store_true", help="Ghi lại file theo refresh_seconds")
+    args = parser.parse_args()
+
+    while True:
+        out = build(args.log, args.config, args.out)
+        print(f"Dashboard: {out} ({datetime.now().strftime('%H:%M:%S')})")
+        if not args.watch:
+            return 0
+        time.sleep(load_dashboard_config(args.config)["dashboard"]["refresh_seconds"])
+
+
+TEMPLATE = r"""<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="__REFRESH__">
+<title>Day 13 Dashboard</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --good: #0ca30c; --critical: #d03b3b; --threshold: #52514e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --threshold: #c3c2b7;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 20px 24px 8px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.meta { color: var(--ink-2); font-size: 13px; }
+.meta b { color: var(--ink); font-weight: 600; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; padding: 16px 24px 24px; }
+@media (max-width: 480px) { .grid { grid-template-columns: 1fr; padding: 12px 16px; } header { padding: 16px; } }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; min-width: 0; }
+.panel h2 { font-size: 15px; margin: 0; }
+.sub { color: var(--muted); font-size: 12px; margin: 2px 0 10px; }
+.tiles { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 8px; }
+.tile .l { color: var(--ink-2); font-size: 12px; }
+.tile .v { font-size: 20px; font-weight: 600; }
+.status { font-size: 12px; font-weight: 600; display: inline-flex; gap: 4px; align-items: center; }
+.status.ok::before { content: "✓"; color: var(--good); }
+.status.bad::before { content: "✗"; color: var(--critical); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); margin: 4px 0; }
+.key { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.key.th { height: 0; border-top: 1px solid var(--threshold); }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15); display: none; z-index: 10; white-space: nowrap; }
+details { margin-top: 8px; font-size: 12px; color: var(--ink-2); }
+table { border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
+td, th { padding: 2px 10px 2px 0; text-align: right; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <div class="meta" id="meta"></div>
+</header>
+<main class="grid" id="grid"></main>
+<div class="tip" id="tip"></div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById("data").textContent);
+const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
+const UNIT = { ms: "ms", requests_per_minute: "req/min", percent: "%", usd: "USD", tokens: "tokens", score_0_to_1: "" };
+const fmtTime = iso => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const start = new Date(D.start);
+const minuteLabel = m => fmtTime(new Date(start.getTime() + m * 60000).toISOString());
+const fmt = (v, unit) => v == null ? "—" : unit === "usd" ? "$" + v.toFixed(4)
+  : unit === "score_0_to_1" ? v.toFixed(2) : Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }) + (UNIT[unit] ? " " + UNIT[unit] : "");
+const pass = (v, t) => v == null ? null : t.operator === "lte" ? v <= t.value : v >= t.value;
+const opText = t => (t.operator === "lte" ? "≤ " : "≥ ");
+
+document.getElementById("title").textContent = D.title;
+document.getElementById("meta").innerHTML =
+  `Time range: <b>last ${D.minutes} min</b> (${fmtTime(D.start)} – ${fmtTime(D.end)}) · ` +
+  `Refresh: <b>${D.refresh}s</b> · Source: <b>${D.source}</b> (${D.records} records) · Generated ${fmtTime(D.generated)}`;
+
+const STAT_LABELS = {
+  latency: [["p50", "P50"], ["p95", "P95"], ["p99", "P99"], ["ttft_p95", "TTFT P95"]],
+  traffic: [["count", "Requests"], ["rate_per_minute", "Avg rate"], ["peak_per_minute", "Peak rate"]],
+  errors: [["error_rate_pct", "Error rate"], ["tool_success_rate_pct", "Retrieval success"]],
+  cost: [["total", "Total cost"]],
+  tokens: [["tokens_in", "Input tokens"], ["tokens_out", "Output tokens"]],
+  quality: [["mean", "Mean quality"]],
+};
+const THRESHOLD_STAT = { p95: "p95", rate_per_minute: "rate_per_minute", error_rate_pct: "error_rate_pct",
+  total: "total", mean: "mean" };
+
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(v))), n = v / e;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * e;
+}
+
+function chart(panel) {
+  const W = 560, H = 190, L = 52, R = 12, T = 10, B = 24, iw = W - L - R, ih = H - T - B;
+  const names = Object.keys(panel.series), n = D.minutes;
+  const values = names.flatMap(k => panel.series[k]).filter(v => v != null);
+  const th = panel.threshold, thValue = th.aggregation === "sum_by_field" || th.aggregation === "total" ? null : th.value;
+  let max = Math.max(0, ...values);
+  if (thValue != null && thValue <= max * 3) max = Math.max(max, thValue);
+  max = panel.unit === "score_0_to_1" ? 1 : niceMax(max * 1.05);
+  const x = m => L + (m + 0.5) * iw / n, y = v => T + ih - v / max * ih;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${panel.title}">`;
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4, yy = y(v);
+    s += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="${i ? "var(--grid)" : "var(--axis)"}" stroke-width="1"/>`;
+    s += `<text x="${L - 6}" y="${yy + 4}" text-anchor="end">${+v.toFixed(panel.unit === "usd" ? 4 : 2)}</text>`;
+  }
+  for (let m = 0; m < n; m += 10) s += `<text x="${x(m)}" y="${H - 6}" text-anchor="middle">${minuteLabel(m)}</text>`;
+  if (thValue != null && thValue <= max) {
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(thValue)}" y2="${y(thValue)}" stroke="var(--threshold)" stroke-width="1" stroke-dasharray="4 3"/>`;
+    s += `<text x="${L + 4}" y="${y(thValue) - 4}" text-anchor="start">threshold ${opText(th)}${thValue}</text>`;
+  }
+  if (panel.id === "traffic" || panel.id === "cost") {
+    const bw = Math.min(24, iw / n - 2), vals = panel.series[names[0]];
+    vals.forEach((v, m) => { if (v) {
+      const h = Math.max(1, ih - (y(v) - T)), r = Math.min(4, bw / 2, h);
+      const x0 = x(m) - bw / 2, y0 = y(v), yb = T + ih;
+      s += `<path d="M${x0},${yb}V${y0 + r}Q${x0},${y0} ${x0 + r},${y0}H${x0 + bw - r}Q${x0 + bw},${y0} ${x0 + bw},${y0 + r}V${yb}Z" fill="var(--s1)"/>`;
+    }});
+  } else {
+    names.forEach((k, i) => {
+      const vals = panel.series[k];
+      let d = "";
+      vals.forEach((v, m) => { if (v == null) return; d += (m > 0 && vals[m - 1] != null ? "L" : "M") + x(m) + "," + y(v); });
+      s += `<path d="${d}" fill="none" stroke="${COLORS[i]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      vals.forEach((v, m) => { if (v != null) s += `<circle cx="${x(m)}" cy="${y(v)}" r="4" fill="${COLORS[i]}" stroke="var(--surface)" stroke-width="2"/>`; });
+    });
+  }
+  s += `<line class="xh" x1="0" x2="0" y1="${T}" y2="${T + ih}" stroke="var(--axis)" stroke-width="1" visibility="hidden"/>`;
+  s += `<rect class="hit" x="${L}" y="${T}" width="${iw}" height="${ih}" fill="transparent"/></svg>`;
+  return { svg: s, geom: { W, L, iw, n, x } };
+}
+
+const tip = document.getElementById("tip");
+D.panels.forEach(panel => {
+  const el = document.createElement("section");
+  el.className = "panel";
+  const th = panel.threshold, stats = panel.stats;
+  const thStat = THRESHOLD_STAT[th.aggregation];
+  let tiles = (STAT_LABELS[panel.id] || []).map(([k, label]) =>
+    `<div class="tile"><div class="l">${label}</div><div class="v">${fmt(stats[k], k.endsWith("pct") ? "percent" : panel.id === "traffic" && k !== "count" ? "requests_per_minute" : panel.id === "traffic" ? "" : panel.unit)}</div></div>`).join("");
+  let checks = [];
+  if (th.aggregation === "sum_by_field") {
+    checks = [["Input", stats.tokens_in], ["Output", stats.tokens_out]].map(([l, v]) => [l, pass(v, th)]);
+  } else if (thStat) {
+    checks = [["Window", pass(stats[thStat], th)]];
+  }
+  const statusHtml = checks.map(([l, ok]) => ok == null ? `<span class="status">no data</span>`
+    : `<span class="status ${ok ? "ok" : "bad"}">${checks.length > 1 ? l + ": " : ""}${ok ? "within threshold" : "threshold breached"}</span>`).join(" · ");
+  const names = Object.keys(panel.series);
+  const legend = (names.length > 1 ? names.map((k, i) => `<span><span class="key" style="background:${COLORS[i]}"></span>${k}</span>`).join("") : "")
+    + `<span><span class="key th"></span>Threshold: ${th.aggregation} ${opText(th)}${th.value} ${UNIT[panel.unit] ?? panel.unit}</span>`;
+  let extra = "";
+  if (panel.id === "errors") {
+    const rows = Object.entries(stats.count_by_value);
+    extra = `<div class="sub">Breakdown by error_type: ${rows.length ? rows.map(([k, v]) => `${k} × ${v}`).join(", ") : "no failed requests"}</div>`;
+  }
+  const c = chart(panel);
+  const tableRows = [...Array(D.minutes).keys()].filter(m => names.some(k => panel.series[k][m] != null && panel.series[k][m] !== 0))
+    .map(m => `<tr><td>${minuteLabel(m)}</td>${names.map(k => `<td>${panel.series[k][m] ?? "—"}</td>`).join("")}</tr>`).join("");
+  el.innerHTML = `<h2>${panel.title}</h2>
+    <div class="sub">Unit: ${panel.unit} · per-minute series over the last ${D.minutes} min</div>
+    <div class="tiles">${tiles}</div>
+    <div>${statusHtml}</div>${extra}
+    <div class="legend">${legend}</div>${c.svg}
+    <details><summary>Table view</summary><table><tr><th>Minute</th>${names.map(k => `<th>${k}</th>`).join("")}</tr>${tableRows || `<tr><td colspan="${names.length + 1}">No data</td></tr>`}</table></details>`;
+  document.getElementById("grid").appendChild(el);
+
+  const svg = el.querySelector("svg"), xh = svg.querySelector(".xh"), hit = svg.querySelector(".hit");
+  hit.addEventListener("mousemove", ev => {
+    const pt = svg.getBoundingClientRect(), sx = (ev.clientX - pt.left) * c.geom.W / pt.width;
+    const m = Math.max(0, Math.min(c.geom.n - 1, Math.floor((sx - c.geom.L) / c.geom.iw * c.geom.n)));
+    xh.setAttribute("x1", c.geom.x(m)); xh.setAttribute("x2", c.geom.x(m)); xh.setAttribute("visibility", "visible");
+    tip.innerHTML = `<b>${minuteLabel(m)}</b><br>` + names.map((k, i) =>
+      `<span class="key" style="background:${COLORS[i]}"></span>${k}: ${fmt(panel.series[k][m], panel.unit === "percent" ? "percent" : panel.unit)}`).join("<br>");
+    tip.style.display = "block";
+    tip.style.left = Math.min(ev.clientX + 12, innerWidth - tip.offsetWidth - 8) + "px";
+    tip.style.top = ev.clientY + 12 + "px";
+  });
+  hit.addEventListener("mouseleave", () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); });
+});
+</script>
+</body>
+</html>
+"""
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
