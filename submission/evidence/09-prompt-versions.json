@@ -1,0 +1,26 @@
+{
+  "project": "day13-k4-l3a-2A2026022741",
+  "exported_at": "2026-09-30T04:33:17+00:00",
+  "name": "day13-chat",
+  "note": "Trạng thái sau khi rollback: production quay lại v1.",
+  "versions": [
+    {
+      "version": 1,
+      "labels": [
+        "baseline",
+        "production"
+      ],
+      "prompt": "Feature={{feature}}\nDocs={{docs}}\nQuestion={{message}}",
+      "commit_message": "v1: baseline template"
+    },
+    {
+      "version": 2,
+      "labels": [
+        "candidate",
+        "latest"
+      ],
+      "prompt": "Feature={{feature}}\nDocs={{docs}}\nQuestion={{message}}\nAnswer in at most 3 short bullet points.",
+      "commit_message": "v2: limit answer length to 3 bullets"
+    }
+  ]
+}

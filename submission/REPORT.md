@@ -9,8 +9,8 @@
 - **Lớp:** K4-L3A
 - **Repository URL:**
 - **Commit SHA cuối:**
-- **Challenge ID:**
-- **Tên project Langfuse cá nhân:** `day13-k4-l3a-<MSSV>`
+- **Challenge ID:** `day13-k4-l3a-monitoring-llmops-v1`
+- **Tên project Langfuse cá nhân:** `day13-k4-l3a-2A2026022741`
 
 ## 2. Evidence index
 
@@ -24,15 +24,15 @@
 | Dashboard validator | `evidence/03-dashboard-validator.txt` |
 | Structured log | `evidence/04-structured-log.txt` |
 | PII redaction | `evidence/05-pii-redaction.txt` |
-| Trace list | `evidence/06-trace-list.png` |
-| Trace waterfall | `evidence/07-trace-waterfall.png` |
-| Trace metadata | `evidence/08-trace-metadata.png` |
-| Prompt versions | `evidence/09-prompt-versions.png` |
-| Prompt rollback | `evidence/10-prompt-rollback.png` |
-| Dashboard runtime | `evidence/11-dashboard-overview.png` |
-| Incident metric | `evidence/12-incident-metric.png` |
-| Incident log | `evidence/13-incident-log.png` |
-| Incident trace | `evidence/14-incident-trace.png` |
+| Trace list | [`evidence/06-trace-list.png`](evidence/06-trace-list.png), [`evidence/06-trace-list.json`](evidence/06-trace-list.json) |
+| Trace waterfall | [`evidence/07-trace-waterfall.json`](evidence/07-trace-waterfall.json) |
+| Trace metadata | [`evidence/08-trace-metadata.json`](evidence/08-trace-metadata.json) |
+| Prompt versions | [`evidence/09-prompt-versions.json`](evidence/09-prompt-versions.json) |
+| Prompt rollback | [`evidence/10-prompt-rollback.json`](evidence/10-prompt-rollback.json) |
+| Dashboard runtime | [`evidence/11-dashboard-overview.png`](evidence/11-dashboard-overview.png) |
+| Incident metric | [`evidence/12-incident-metric.png`](evidence/12-incident-metric.png), [`evidence/12-incident-metric.txt`](evidence/12-incident-metric.txt) |
+| Incident log | [`evidence/13-incident-log.txt`](evidence/13-incident-log.txt) |
+| Incident trace | [`evidence/14-incident-trace.json`](evidence/14-incident-trace.json) |
 
 ## 3. Kết quả kỹ thuật
 
@@ -40,8 +40,8 @@
 |---|---|---|---|
 | `validate_logs.py` | 30/100 (21 records: 20 thiếu `correlation_id`, 20 thiếu enrichment, 0 correlation ID) — [00-baseline.txt](evidence/00-baseline.txt) | CP1: 100/100 — [02-log-validator.txt](evidence/02-log-validator.txt) | Đã lưu output baseline, chuyển log cũ ra khỏi repo rồi chạy lại load test trước khi đo |
 | `validate_dashboard.py` | HỢP LỆ: 6/6 panel (contract) | CP2: HỢP LỆ 6/6 — [03-dashboard-validator.txt](evidence/03-dashboard-validator.txt) | Dashboard runtime dựng bằng `scripts/build_dashboard.py` từ `data/logs.jsonl` |
-| `pytest` | 22 passed | CP1: 34 passed | +12 test cho PII, correlation ID, enrichment, thứ tự processor |
-| Số traces hợp lệ | 0 child observation (starter chỉ có root) | CP2: 23 traces có root + `retrieval` + `llm-generation` | Đếm qua Langfuse Observations API v2 |
+| `pytest` | 22 passed | CP2: 33 passed | +11 test cho PII, correlation ID, enrichment, thứ tự processor |
+| Số traces hợp lệ | 0 child observation (starter chỉ có root) | CP2: 28 traces có root + `retrieval` + `llm-generation` — [06-trace-list.json](evidence/06-trace-list.json) | Đếm qua Langfuse Observations API v2 |
 | Số PII leak | 0 (validator) | CP1: 0 — [05-pii-redaction.txt](evidence/05-pii-redaction.txt) | Baseline 0 vì `summarize_text` đã scrub `message_preview`, nhưng processor chưa đăng ký nên field khác (error detail, event) vẫn có thể lộ |
 | Latency P95 / TTFT P95 | | CP2: 3997 ms / 50 ms (36 request, cửa sổ 60 phút) | P95 bị kéo lên bởi 2 request cold-start fetch prompt; khi chạy `rag_slow` latency ~2653 ms |
 | Retrieval success rate | | CP2: 100% (0 `request_failed`) | Chưa chạy practice `tool_fail` |
@@ -62,7 +62,7 @@
 - **Version/label baseline:** version 1 = template gốc, labels `baseline` + `production`
 - **Version/label candidate:** version 2 = thêm dòng `Answer in at most 3 short bullet points.`, label `candidate`
 - **Trace ID của mỗi version:** cùng input *"Explain why metrics traces and logs work together"*: `baseline` → v1: `req-56cb3a22`, trace `9ef9a0a0a709c5c1c9fc71b571ef555f` (tokens_in 32); `candidate` → v2: `req-cdda450a`, trace `e23e86c516c9bef17237f4a0afdadf33` (tokens_in 43). Metadata root ghi `prompt_source=langfuse`, `prompt_label` và `prompt_version` tương ứng; generation liên kết `day13-chat` v1/v2.
-- **Cách promote và rollback `production`:** _(chưa làm — thực hiện trên Langfuse UI và chụp ảnh trước/sau)_
+- **Cách promote và rollback `production`:** dùng SDK `update_prompt` (label là duy nhất giữa các version nên gắn `production` cho version nào thì version kia tự mất label). Trước: `production` = v1 → `req-86ae0e98`, trace `a91ff19f4389087cc6cc95d5ff41904a` (v1). Promote: `update_prompt(version=2, new_labels=[candidate, production])` → `req-312d005f`, trace `ce5b4e4ac9984f5abd77d2d6b1a01273` (v2, tokens_in 43). Rollback: `update_prompt(version=1, new_labels=[baseline, production])` → `req-49c1c49e`, trace `05f5da75540f54e345827f672180eb31` (v1, tokens_in 32). App cache prompt 60 s theo kiểu stale-while-revalidate, nên request đầu tiên sau mỗi lần đổi label vẫn nhận version cũ (`req-a61c1a68`, `req-fa05c49e`); rollback có hiệu lực sau tối đa ~60 s + 1 request. Chi tiết: [10-prompt-rollback.json](evidence/10-prompt-rollback.json), [09-prompt-versions.json](evidence/09-prompt-versions.json).
 
 ## 6. Dashboard, SLO và alerts
 
@@ -73,14 +73,14 @@
 
 ## 7. Điều tra challenge
 
-- **Challenge ID:**
-- **Khoảng thời gian điều tra:**
-- **Triệu chứng từ metrics:**
-- **Log line và correlation ID liên quan:**
-- **Trace ID và span gây ảnh hưởng:**
-- **Root cause:**
-- **Fix action:**
-- **Preventive measure:**
+- **Challenge ID:** `day13-k4-l3a-monitoring-llmops-v1` (cohort K4, seed 1311, `latency_threshold_ms` 2000, feature bị ảnh hưởng `monitoring`)
+- **Khoảng thời gian điều tra:** 2026-09-30 04:36:56Z → 04:37:12Z (11:36:56–11:37:12 giờ VN), chạy `inject_incident.py` + `load_test.py --challenge --concurrency 5`; so với nền 04:34:00–04:36:56Z.
+- **Triệu chứng từ metrics:** panel Latency: P95 tăng từ 154 ms lên 2655 ms (~17 lần, vượt ngưỡng 2000 ms của challenge), P50 152 → 2653 ms, trong khi **TTFT P95 giữ nguyên 50 ms**, error rate 0%, retrieval success 100%, token/cost bình thường. Chỉ feature `monitoring` bị ảnh hưởng. TTFT không đổi nên phần chậm nằm trước bước LLM. ([12-incident-metric.png](evidence/12-incident-metric.png), [12-incident-metric.txt](evidence/12-incident-metric.txt))
+- **Log line và correlation ID liên quan:** cả 5 `response_sent` trong cửa sổ đều `feature=monitoring`, `latency_ms` 2652–2655, `ttft_ms=50`, `tool_success=true` (chậm nhưng không lỗi). Request chọn để truy vết: `2026-09-30T04:37:00.482909Z req-6ee1d9e6 feature=monitoring latency_ms=2654 ttft_ms=50`. ([13-incident-log.txt](evidence/13-incident-log.txt))
+- **Trace ID và span gây ảnh hưởng:** trace `bc7e13903632f02efdf97b7b53595e5b` (metadata `correlation_id=req-6ee1d9e6`): root `lab-agent-run` 2660 ms = **`retrieval` 2506 ms** + `llm-generation` 153 ms, không có khoảng trống giữa hai span. Cả 5 trace challenge đều có `retrieval` ≈ 2500 ms, trong khi 10 trace ngay trước sự cố có `retrieval` ≈ 0 ms. ([14-incident-trace.json](evidence/14-incident-trace.json))
+- **Root cause:** bước retrieval (vector store) bị chậm ~2.5 s mỗi request (incident `rag_slow` trong `app/mock_rag.py`), không phải LLM hay prompt. Tác động bị khuếch đại vì `/chat` là `async` nhưng gọi `agent.run` đồng bộ, nên request retrieval chậm chặn event loop: với concurrency 5, các request xếp hàng tuần tự và client chờ tới ~13.3 s, dù `latency_ms` phía server chỉ ~2.65 s.
+- **Fix action:** tắt incident (`python scripts/inject_incident.py --disable`), tương đương khôi phục vector store. Kiểm chứng bằng cùng 5 query challenge lúc 04:40:07Z: P95 feature `monitoring` về 152 ms, client ~0.6–0.8 s (`req-0fe3fc4d`, `req-a61d5684`, `req-f74446b0`, `req-59f2086c`, `req-0e9d0ddb`).
+- **Preventive measure:** (1) timeout cho retrieval (ví dụ 500 ms) và fallback trả lời không có context, để một vector store chậm không làm hỏng SLO; (2) chạy `agent.run` qua threadpool (`run_in_threadpool`) hoặc chuyển sang I/O async để request chậm không chặn các request khác; (3) thêm SLI latency đo ở biên (`x-response-time-ms`) vì `latency_ms` hiện không thấy thời gian xếp hàng; (4) alert riêng cho latency của span `retrieval` và hạ ngưỡng `HighLatencyP95` về 2000 ms cho feature `monitoring`, vì sự cố này (P95 2655 ms) chưa chạm ngưỡng 3000 ms nên alert hiện tại không kêu.
 
 ## 8. Giải thích và tự đánh giá
 

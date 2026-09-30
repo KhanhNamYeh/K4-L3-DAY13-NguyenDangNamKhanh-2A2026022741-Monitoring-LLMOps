@@ -1,0 +1,46 @@
+# Incident log - data/logs.jsonl, loc event=response_sent trong khoang su co, latency_ms > 2000 (latency_threshold_ms)
+2026-09-30T04:37:08.463455Z req-27761110 feature=monitoring latency_ms=2655 ttft_ms=50 tool_name=retrieval tool_success=True
+2026-09-30T04:37:00.482909Z req-6ee1d9e6 feature=monitoring latency_ms=2654 ttft_ms=50 tool_name=retrieval tool_success=True
+2026-09-30T04:37:03.142565Z req-ec359834 feature=monitoring latency_ms=2653 ttft_ms=50 tool_name=retrieval tool_success=True
+2026-09-30T04:37:11.122775Z req-6b1e93b4 feature=monitoring latency_ms=2653 ttft_ms=50 tool_name=retrieval tool_success=True
+2026-09-30T04:37:05.803410Z req-d0318197 feature=monitoring latency_ms=2652 ttft_ms=50 tool_name=retrieval tool_success=True
+
+# Request duoc chon de trace: req-6ee1d9e6 (log day du cua request)
+{
+  "service": "api",
+  "payload": {
+    "message_preview": "Describe how to prove a slow span is the root cause."
+  },
+  "event": "request_received",
+  "feature": "monitoring",
+  "env": "dev",
+  "correlation_id": "req-6ee1d9e6",
+  "session_id": "k4-l3a-challenge-s05",
+  "user_id_hash": "ed72e61117f6",
+  "model": "claude-sonnet-4-5",
+  "level": "info",
+  "ts": "2026-09-30T04:36:57.822646Z"
+}
+{
+  "service": "api",
+  "latency_ms": 2654,
+  "ttft_ms": 50,
+  "tokens_in": 35,
+  "tokens_out": 160,
+  "cost_usd": 0.002505,
+  "quality_score": 0.8,
+  "tool_name": "retrieval",
+  "tool_success": true,
+  "payload": {
+    "answer_preview": "Starter answer. You should improve this output logic and add better quality chec..."
+  },
+  "event": "response_sent",
+  "feature": "monitoring",
+  "env": "dev",
+  "correlation_id": "req-6ee1d9e6",
+  "session_id": "k4-l3a-challenge-s05",
+  "user_id_hash": "ed72e61117f6",
+  "model": "claude-sonnet-4-5",
+  "level": "info",
+  "ts": "2026-09-30T04:37:00.482909Z"
+}

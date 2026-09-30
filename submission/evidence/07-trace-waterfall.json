@@ -1,0 +1,76 @@
+{
+  "project": "day13-k4-l3a-2A2026022741",
+  "source": "Xuất bằng Langfuse Observations API v2 (GET /api/public/v2/observations) từ project cá nhân; đã lọc public key và thuộc tính nội bộ của SDK.",
+  "correlation_id": "req-49c1c49e",
+  "traceId": "05f5da75540f54e345827f672180eb31",
+  "tree": {
+    "id": "2e1d18d1ef6e3713",
+    "type": "AGENT",
+    "name": "lab-agent-run",
+    "parentObservationId": null,
+    "startTime": "2026-09-30T04:31:19.667Z",
+    "endTime": "2026-09-30T04:31:19.821Z",
+    "latency_s": 0.154,
+    "level": "DEFAULT",
+    "metadata": {
+      "correlation_id": "req-49c1c49e",
+      "feature": "qa",
+      "model": "claude-sonnet-4-5",
+      "doc_count": 1,
+      "query_preview": "Explain why metrics traces and logs work together",
+      "prompt_name": "day13-chat",
+      "prompt_label": "production",
+      "prompt_version": 1,
+      "prompt_source": "langfuse",
+      "prompt_fetch_error": ""
+    },
+    "children": [
+      {
+        "id": "ab156ac1dacfeef2",
+        "type": "RETRIEVER",
+        "name": "retrieval",
+        "parentObservationId": "2e1d18d1ef6e3713",
+        "startTime": "2026-09-30T04:31:19.667Z",
+        "endTime": "2026-09-30T04:31:19.667Z",
+        "latency_s": 0,
+        "level": "DEFAULT",
+        "metadata": {
+          "correlation_id": "req-49c1c49e",
+          "feature": "qa",
+          "model": "claude-sonnet-4-5"
+        }
+      },
+      {
+        "id": "a0072f451d33d156",
+        "type": "GENERATION",
+        "name": "llm-generation",
+        "parentObservationId": "2e1d18d1ef6e3713",
+        "startTime": "2026-09-30T04:31:19.667Z",
+        "endTime": "2026-09-30T04:31:19.821Z",
+        "latency_s": 0.154,
+        "level": "DEFAULT",
+        "metadata": {
+          "correlation_id": "req-49c1c49e",
+          "feature": "qa",
+          "model": "claude-sonnet-4-5"
+        },
+        "model": "claude-sonnet-4-5",
+        "usageDetails": {
+          "input": 32,
+          "output": 133,
+          "total": 165
+        },
+        "costDetails": {
+          "input": 9.6e-05,
+          "output": 0.001995,
+          "total": 0.002091
+        },
+        "completionStartTime": "2026-09-30T04:31:19.719Z",
+        "prompt": {
+          "name": "day13-chat",
+          "version": 1
+        }
+      }
+    ]
+  }
+}

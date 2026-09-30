@@ -1,0 +1,121 @@
+{
+  "project": "day13-k4-l3a-2A2026022741",
+  "challenge_id": "day13-k4-l3a-monitoring-llmops-v1",
+  "correlation_id": "req-6ee1d9e6",
+  "traceId": "bc7e13903632f02efdf97b7b53595e5b",
+  "source": "Langfuse Observations API v2; da loc public key va thuoc tinh noi bo cua SDK.",
+  "finding": "retrieval chiem ~2500 ms / 2654 ms cua root; llm-generation ~150 ms binh thuong (TTFT 50 ms).",
+  "tree": {
+    "id": "0e2b4e942eef54b5",
+    "type": "AGENT",
+    "name": "lab-agent-run",
+    "parentObservationId": null,
+    "startTime": "2026-09-30T04:36:57.822Z",
+    "endTime": "2026-09-30T04:37:00.482Z",
+    "duration_ms": 2660,
+    "level": "DEFAULT",
+    "metadata": {
+      "correlation_id": "req-6ee1d9e6",
+      "model": "claude-sonnet-4-5",
+      "feature": "monitoring",
+      "prompt_source": "langfuse",
+      "prompt_version": 1,
+      "prompt_label": "production",
+      "prompt_name": "day13-chat",
+      "doc_count": 1
+    },
+    "children": [
+      {
+        "id": "551007f1fca94f1e",
+        "type": "RETRIEVER",
+        "name": "retrieval",
+        "parentObservationId": "0e2b4e942eef54b5",
+        "startTime": "2026-09-30T04:36:57.822Z",
+        "endTime": "2026-09-30T04:37:00.328Z",
+        "duration_ms": 2506,
+        "level": "DEFAULT",
+        "metadata": {
+          "correlation_id": "req-6ee1d9e6",
+          "model": "claude-sonnet-4-5",
+          "feature": "monitoring"
+        }
+      },
+      {
+        "id": "b61389c800fbb782",
+        "type": "GENERATION",
+        "name": "llm-generation",
+        "parentObservationId": "0e2b4e942eef54b5",
+        "startTime": "2026-09-30T04:37:00.329Z",
+        "endTime": "2026-09-30T04:37:00.482Z",
+        "duration_ms": 153,
+        "level": "DEFAULT",
+        "metadata": {
+          "correlation_id": "req-6ee1d9e6",
+          "model": "claude-sonnet-4-5",
+          "feature": "monitoring"
+        },
+        "model": "claude-sonnet-4-5",
+        "usageDetails": {
+          "input": 35,
+          "output": 160,
+          "total": 195
+        },
+        "costDetails": {
+          "input": 0.000104999999,
+          "output": 0.0024,
+          "total": 0.002505
+        },
+        "prompt": {
+          "name": "day13-chat",
+          "version": 1
+        }
+      }
+    ]
+  },
+  "all_challenge_traces": [
+    {
+      "correlation_id": "req-27761110",
+      "traceId": "0f1d05b0da927fb03750ee68735d7a0c",
+      "root_ms": 2655,
+      "retrieval_ms": 2502,
+      "generation_ms": 153,
+      "gap_retrieval_end_to_generation_start_ms": 0
+    },
+    {
+      "correlation_id": "req-6b1e93b4",
+      "traceId": "f8dc503c92475237373c2bd969a83248",
+      "root_ms": 2655,
+      "retrieval_ms": 2503,
+      "generation_ms": 152,
+      "gap_retrieval_end_to_generation_start_ms": 0
+    },
+    {
+      "correlation_id": "req-6ee1d9e6",
+      "traceId": "bc7e13903632f02efdf97b7b53595e5b",
+      "root_ms": 2660,
+      "retrieval_ms": 2506,
+      "generation_ms": 153,
+      "gap_retrieval_end_to_generation_start_ms": 1
+    },
+    {
+      "correlation_id": "req-d0318197",
+      "traceId": "303a781fbac5342b29ca42209846c720",
+      "root_ms": 2653,
+      "retrieval_ms": 2500,
+      "generation_ms": 152,
+      "gap_retrieval_end_to_generation_start_ms": 0
+    },
+    {
+      "correlation_id": "req-ec359834",
+      "traceId": "2b1051eb8a9b573aeeb80daa56f8047d",
+      "root_ms": 2653,
+      "retrieval_ms": 2501,
+      "generation_ms": 152,
+      "gap_retrieval_end_to_generation_start_ms": 0
+    }
+  ],
+  "baseline_retrieval_ms_before_incident": {
+    "n": 10,
+    "max_ms": 0
+  }
+}

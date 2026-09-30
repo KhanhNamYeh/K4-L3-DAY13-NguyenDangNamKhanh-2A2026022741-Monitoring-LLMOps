@@ -1,0 +1,91 @@
+{
+  "project": "day13-k4-l3a-2A2026022741",
+  "source": "Xuất bằng Langfuse Observations API v2 (GET /api/public/v2/observations) từ project cá nhân; đã lọc public key và thuộc tính nội bộ của SDK.",
+  "prompt": "day13-chat",
+  "app_label": "production",
+  "steps": [
+    {
+      "action": "before: production = v1",
+      "production_label_on": "v1",
+      "correlation_id": "req-86ae0e98",
+      "traceId": "a91ff19f4389087cc6cc95d5ff41904a",
+      "startTime": "2026-09-30T04:13:31.667Z",
+      "generation_prompt": "day13-chat v1",
+      "root_metadata": {
+        "prompt_label": "production",
+        "prompt_version": 1,
+        "prompt_source": "langfuse"
+      },
+      "tokens_in": 32
+    },
+    {
+      "action": "promote: update_prompt(version=2, new_labels=[candidate, production])",
+      "production_label_on": "v2",
+      "correlation_id": "req-312d005f",
+      "traceId": "ce5b4e4ac9984f5abd77d2d6b1a01273",
+      "startTime": "2026-09-30T04:30:06.874Z",
+      "generation_prompt": "day13-chat v2",
+      "root_metadata": {
+        "prompt_label": "production",
+        "prompt_version": 2,
+        "prompt_source": "langfuse"
+      },
+      "tokens_in": 43
+    },
+    {
+      "action": "rollback: update_prompt(version=1, new_labels=[baseline, production])",
+      "production_label_on": "v1",
+      "correlation_id": "req-49c1c49e",
+      "traceId": "05f5da75540f54e345827f672180eb31",
+      "startTime": "2026-09-30T04:31:19.667Z",
+      "generation_prompt": "day13-chat v1",
+      "root_metadata": {
+        "prompt_label": "production",
+        "prompt_version": 1,
+        "prompt_source": "langfuse"
+      },
+      "tokens_in": 32
+    }
+  ],
+  "same_label_comparison": [
+    {
+      "action": "LANGFUSE_PROMPT_LABEL=baseline",
+      "correlation_id": "req-56cb3a22",
+      "traceId": "9ef9a0a0a709c5c1c9fc71b571ef555f",
+      "startTime": "2026-09-29T08:25:35.018Z",
+      "generation_prompt": "day13-chat v1",
+      "root_metadata": {
+        "prompt_label": "baseline",
+        "prompt_version": 1,
+        "prompt_source": "langfuse"
+      },
+      "tokens_in": 32,
+      "label_used": "baseline"
+    },
+    {
+      "action": "LANGFUSE_PROMPT_LABEL=candidate",
+      "correlation_id": "req-cdda450a",
+      "traceId": "e23e86c516c9bef17237f4a0afdadf33",
+      "startTime": "2026-09-29T08:25:38.188Z",
+      "generation_prompt": "day13-chat v2",
+      "root_metadata": {
+        "prompt_label": "candidate",
+        "prompt_version": 2,
+        "prompt_source": "langfuse"
+      },
+      "tokens_in": 43,
+      "label_used": "candidate"
+    }
+  ],
+  "cache_note": "App cache prompt 60s (stale-while-revalidate): request đầu sau khi đổi label vẫn nhận version cũ (req-a61c1a68 sau promote, req-fa05c49e sau rollback) nên không dùng làm evidence.",
+  "current_labels": {
+    "v1": [
+      "baseline",
+      "production"
+    ],
+    "v2": [
+      "candidate",
+      "latest"
+    ]
+  }
+}

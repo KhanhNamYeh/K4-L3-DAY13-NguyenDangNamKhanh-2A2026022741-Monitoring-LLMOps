@@ -1,0 +1,372 @@
+{
+  "project": "day13-k4-l3a-2A2026022741",
+  "exported_at": "2026-09-30T04:33:17+00:00",
+  "source": "Xuất bằng Langfuse Observations API v2 (GET /api/public/v2/observations) từ project cá nhân; đã lọc public key và thuộc tính nội bộ của SDK.",
+  "trace_count_with_root_retrieval_generation": 28,
+  "traces": [
+    {
+      "traceId": "e5d5a549997a75ca6f7f0cdf60f4de4d",
+      "startTime": "2026-09-29T08:24:20.419Z",
+      "correlation_id": "req-da9b1267",
+      "feature": "qa",
+      "latency_s": 4.003,
+      "prompt": "local-fallback",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "9ef9a0a0a709c5c1c9fc71b571ef555f",
+      "startTime": "2026-09-29T08:25:35.018Z",
+      "correlation_id": "req-56cb3a22",
+      "feature": "qa",
+      "latency_s": 2.594,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "e23e86c516c9bef17237f4a0afdadf33",
+      "startTime": "2026-09-29T08:25:38.188Z",
+      "correlation_id": "req-cdda450a",
+      "feature": "qa",
+      "latency_s": 1.979,
+      "prompt": "day13-chat v2",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "45028e4e660fa254db5b1193b1544e3c",
+      "startTime": "2026-09-29T08:28:12.719Z",
+      "correlation_id": "req-643a113f",
+      "feature": "qa",
+      "latency_s": 1.966,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "3dbd677af00a63dc313080637bab46f2",
+      "startTime": "2026-09-29T08:28:14.687Z",
+      "correlation_id": "req-5dd81726",
+      "feature": "qa",
+      "latency_s": 0.157,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "eb8defea33b6e5bf853f1c26e3336129",
+      "startTime": "2026-09-29T08:28:14.846Z",
+      "correlation_id": "req-2d846412",
+      "feature": "summary",
+      "latency_s": 0.154,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "20d04c9c9c0fa2d4e021afefdbf21153",
+      "startTime": "2026-09-29T08:28:15.003Z",
+      "correlation_id": "req-de656f98",
+      "feature": "qa",
+      "latency_s": 0.153,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "cf5b0ee02a01fd326be3b6974a7aa11e",
+      "startTime": "2026-09-29T08:28:15.156Z",
+      "correlation_id": "req-0f8349fe",
+      "feature": "qa",
+      "latency_s": 0.155,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "a2c3aa326a289436da994b7dc3a8674b",
+      "startTime": "2026-09-29T08:28:15.315Z",
+      "correlation_id": "req-d90689bb",
+      "feature": "summary",
+      "latency_s": 0.155,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "48c09e0b0e8b8dd983fb34bf753f8403",
+      "startTime": "2026-09-29T08:28:15.472Z",
+      "correlation_id": "req-da0073e3",
+      "feature": "qa",
+      "latency_s": 0.153,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "c3dc0040269ec04cf02ebc807f7f2c98",
+      "startTime": "2026-09-29T08:28:15.628Z",
+      "correlation_id": "req-2ef5b3fb",
+      "feature": "qa",
+      "latency_s": 0.153,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "a5cb45c4ab88e4b6d466587039ca38d3",
+      "startTime": "2026-09-29T08:28:15.783Z",
+      "correlation_id": "req-065774ff",
+      "feature": "qa",
+      "latency_s": 0.152,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "f515d3eda1df5571ddd7a8f62aefc855",
+      "startTime": "2026-09-29T08:28:15.935Z",
+      "correlation_id": "req-c117c2fa",
+      "feature": "qa",
+      "latency_s": 0.157,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "e7534712a9793e0a4a4df7fe72261ecf",
+      "startTime": "2026-09-29T08:28:17.082Z",
+      "correlation_id": "req-3aea7beb",
+      "feature": "summary",
+      "latency_s": 2.657,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "e16915dedcb99ebfcaf3e1f3ffcaf496",
+      "startTime": "2026-09-29T08:28:19.743Z",
+      "correlation_id": "req-04cfefb9",
+      "feature": "qa",
+      "latency_s": 2.654,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "7990b600fce15e9718b5c3f531108509",
+      "startTime": "2026-09-29T08:28:22.397Z",
+      "correlation_id": "req-11e0cf4f",
+      "feature": "qa",
+      "latency_s": 2.655,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "7e14e1e38b530197663bbb809ff7cb4f",
+      "startTime": "2026-09-29T08:28:25.055Z",
+      "correlation_id": "req-95572fab",
+      "feature": "qa",
+      "latency_s": 2.654,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "b2498f78e599c961a36dce04cd455fab",
+      "startTime": "2026-09-29T08:28:27.710Z",
+      "correlation_id": "req-54e51539",
+      "feature": "qa",
+      "latency_s": 2.654,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "3e9d85f44fa7f7a02ec6ecbfbb95427e",
+      "startTime": "2026-09-29T08:28:30.368Z",
+      "correlation_id": "req-2c052c44",
+      "feature": "qa",
+      "latency_s": 2.655,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "92fb1f27310127340af286c722504392",
+      "startTime": "2026-09-29T08:28:33.030Z",
+      "correlation_id": "req-63c405d7",
+      "feature": "summary",
+      "latency_s": 2.655,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "293702d88473a5f1d7617f6db16b8cb0",
+      "startTime": "2026-09-29T08:28:35.689Z",
+      "correlation_id": "req-b54445e9",
+      "feature": "qa",
+      "latency_s": 2.654,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "51281c560dd0e8c300bd133d7a3957bc",
+      "startTime": "2026-09-29T08:28:38.348Z",
+      "correlation_id": "req-d362f2c4",
+      "feature": "qa",
+      "latency_s": 2.655,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "9b2651cbf28caae43db1e7e23fb49a58",
+      "startTime": "2026-09-29T08:28:41.006Z",
+      "correlation_id": "req-f6f71c2c",
+      "feature": "qa",
+      "latency_s": 2.653,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "a91ff19f4389087cc6cc95d5ff41904a",
+      "startTime": "2026-09-30T04:13:31.667Z",
+      "correlation_id": "req-86ae0e98",
+      "feature": "qa",
+      "latency_s": 1.077,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "e533969faab9951c65a609c49e58ad04",
+      "startTime": "2026-09-30T04:29:59.930Z",
+      "correlation_id": "req-a61c1a68",
+      "feature": "qa",
+      "latency_s": 0.155,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "ce5b4e4ac9984f5abd77d2d6b1a01273",
+      "startTime": "2026-09-30T04:30:06.874Z",
+      "correlation_id": "req-312d005f",
+      "feature": "qa",
+      "latency_s": 0.152,
+      "prompt": "day13-chat v2",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "97e0743a8704e523adf85f7a9ed16554",
+      "startTime": "2026-09-30T04:31:12.802Z",
+      "correlation_id": "req-fa05c49e",
+      "feature": "qa",
+      "latency_s": 0.153,
+      "prompt": "day13-chat v2",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    },
+    {
+      "traceId": "05f5da75540f54e345827f672180eb31",
+      "startTime": "2026-09-30T04:31:19.667Z",
+      "correlation_id": "req-49c1c49e",
+      "feature": "qa",
+      "latency_s": 0.154,
+      "prompt": "day13-chat v1",
+      "observations": [
+        "lab-agent-run",
+        "llm-generation",
+        "retrieval"
+      ]
+    }
+  ]
+}

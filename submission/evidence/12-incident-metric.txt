@@ -1,0 +1,11 @@
+# Incident metric - challenge day13-k4-l3a-monitoring-llmops-v1
+# Nguon: data/logs.jsonl (event=response_sent), cung cong thuc voi panel Latency cua dashboard (anh 12-incident-metric.png)
+# Khoang dieu tra: 2026-09-30T04:36:56Z -> 2026-09-30T04:37:12Z (challenge load test, concurrency 5)
+
+Truoc su co (04:34:00-04:36:56Z)   n=20  P50=   152 ms  P95=   154 ms  TTFT P95=  50 ms  error_rate=0%  features=['qa', 'summary']
+Trong su co (04:36:56-04:37:12Z)   n=5   P50=  2653 ms  P95=  2655 ms  TTFT P95=  50 ms  error_rate=0%  features=['monitoring']
+
+Nhan xet: latency P95 tang ~17 lan (154 -> 2655 ms), vuot latency_threshold_ms=2000 cua challenge;
+TTFT P95 khong doi (50 ms), error rate 0%, token/cost binh thuong => phan cham nam TRUOC buoc LLM, chi o feature monitoring.
+GET /metrics sau su co: latency_p95=2654.0, ttft_p95=50.0, error_breakdown={}
+after fix: n=5 P95=152.0 ms ['req-0fe3fc4d', 'req-a61d5684', 'req-f74446b0', 'req-59f2086c', 'req-0e9d0ddb']
